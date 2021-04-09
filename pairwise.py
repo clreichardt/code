@@ -10,7 +10,7 @@ from scipy.stats import binned_statistic as binstats
 
 numba.config.NUMBA_NUM_THREADS = 8
 
-def CalculatePairwiseCDist(ra, dec, com_dists, field, sep_min=0, sep_max=300, nbins=20, flip_sign=False, count=True):
+def CalculatePairwiseCDist(ra, dec, com_dists, field, sep_min=1, sep_max=300, nbins=20, flip_sign=False, count=True):
     nclusts = len(ra)
     delta_sep = (sep_max-sep_min)/nbins
     bins = arange(sep_min,sep_max+delta_sep,delta_sep)
@@ -20,6 +20,14 @@ def CalculatePairwiseCDist(ra, dec, com_dists, field, sep_min=0, sep_max=300, nb
     vec_dist = (vec_unit.T * com_dists).T # Mpc
     tree = cKDTree(vec_dist)
     pairs = tree.query_pairs(sep_max, output_type='ndarray') 
+    
+    dista = vec_dist[pairs[:,0]]
+    distb = vec_dist[pairs[:,1]]
+    com_sep = linalg.norm(dista - distb, axis=1)
+    ind = where(com_sep==0)
+    
+    com_sep = delete(com_sep, ind)
+    pairs = delete(pairs, ind, axis=0)
     
     unita = vec_unit[pairs[:,0]]
     unitb = vec_unit[pairs[:,1]]
@@ -229,7 +237,9 @@ def readdata(filename, DECmin=None, DECmax=None, richmin=None, richmax=None, pho
         if seed is not None:
             random.seed(seed)
             
-        pos = random.randint(0,len(Z),size=nobj)
+        pos = arange(len(Z))
+        random.shuffle(pos)
+        pos = pos[0:nobj]
         Z = Z[pos]
         RA = RA[pos]
         DEC = DEC[pos]
@@ -257,7 +267,7 @@ def readdata(filename, DECmin=None, DECmax=None, richmin=None, richmax=None, pho
 
 def pkSZcalc(RA, DEC, com_dists, T, binnumber=16, Jackknife=True, Bootstrap=False, subsamples=150, sign=False, count=False):
     r, TpkSZ, counter = CalculatePairwiseCDist(RA, DEC, com_dists, T, nbins=binnumber, flip_sign=sign, count=count)
-    r = delete(r, 0)
+    r = delete(r, len(r)-1)
     if Jackknife:
         TpkSZknife = GetJackknife(RA, DEC, com_dists, T, nbins=binnumber, knifebins=subsamples, flip_sign=sign)
     elif Bootstrap:

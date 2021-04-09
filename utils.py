@@ -7,7 +7,6 @@ from colossus.cosmology import cosmology
 import sys
 sys.path.append('/sptlocal/user/eschiappucci/spt3g_software/build')
 from spt3g import core, mapmaker, mapspectra, maps
-from spt3g import coordinateutils as cu
 from astropy.io import fits
 from scipy.integrate import simps, quad
 from scipy import interpolate
