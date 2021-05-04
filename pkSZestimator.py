@@ -239,7 +239,7 @@ def gammafit(gamma, r, TpkSZ, TpkSZcov, tau, rmin=1, sep_good=None, rmax=301, ri
             pkSZ[i] = sum(pkSZfull)/len(R)
         
         vec = TpkSZfit - pkSZ
-        chisq[j] = np.matmul(vec, matmul(invc, vec))
+        chisq[j] = np.matmul(vec, np.matmul(invc, vec))
         if j == 0:
             chisqbest = chisq[j]
             bestgamma = gamma[j]
