@@ -5,9 +5,8 @@ from colossus.halo import mass_adv
 from colossus.cosmology import cosmology
 
 import sys
-sys.path.append('/sptlocal/user/eschiappucci/spt3g_software/build')
+
 from spt3g import core, mapmaker, mapspectra, maps
-from spt3g import coordinateutils as cu
 from astropy.io import fits
 from scipy.integrate import simps, quad
 from scipy import interpolate
@@ -372,7 +371,7 @@ def masstorich(mass, z, massdef='200c'):
     h = cosmo.Hz(z)/100
     Mnew = zeros(len(mass))
     for i in range(len(mass)):
-        Mnew[i], Rnew, Cnew = mass_adv.changeMassDefinitionCModel(mass[i]*h, z[i], massdef, '200m')
+        Mnew[i], Rnew, Cnew = mass_adv.changeMassDefinitionCModel(mass[i]*h[i], z[i], massdef, '200m')
     Mnew=Mnew/h
     return 40*((Mnew/M0)*(1.35/(1+z))**G)**(1./F)
 
@@ -464,7 +463,9 @@ def fn_load_halo_flender(fname, mmin=5e14, mmax=5e15, richmin=None, richmax=None
         cat = cat[(cat.DEC >= DEC_SPT3g_min) & (cat.DEC <= DEC_SPT3g_max)]
     
     if nobj is not None:
-        cat = cat[random.randint(0,len(cat),size=nobj)]
+        ind = range(len(cat))
+        np.random.shuffle(ind)
+        cat = cat[ind[0:nobj]]
     
     if richmin is not None and richmax is not None:
         richness = masstorich(cat.M200, cat.REDSHIFT, massdef='200c')
