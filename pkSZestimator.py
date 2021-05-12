@@ -7,9 +7,7 @@ from colossus.cosmology import cosmology
 from colossus.halo import mass_adv
 from colossus.lss.mass_function import modelTinker08 as Tinker08
 from colossus.lss.mass_function import massFunction
-
-cosmo = cosmology.setCosmology('planck18')
-h = cosmo.Hz(0)/100
+from utils import *
 
 def DESrichtomass(richness, z):
     M0 = 3.081e14 #Msun
@@ -25,7 +23,7 @@ def j1(x):
 
 def fz(z, gamma=4./7.):
     '''
-    Lahav et al (1991) approximation for the growth factor 
+    Lahav et al (1991) approximation for the growth factor
     '''
     Omz = cosmo.Om(z)
     Odz = cosmo.Ode(z)
@@ -52,7 +50,6 @@ def bias_nu(nu, deltac=1.686, delta_v=200.):
     b = 1.5
     C = 0.019 + 0.107*y + 0.19*np.exp(-(4./y)**4.)
     c = 2.4
-    
     return (1. - A*nu**a/(nu**a + deltac**a) + B*nu**b + C*nu**c)
 
 def bias_avg(Mmin, Mmax, z):
@@ -72,8 +69,8 @@ def rho_bar(z): #[M_sun/kpc^3]
     return cosmo.rho_c(z) * cosmo.Om(z) * (h**2) #* (1+z)**3 
 
 def W_k_tophat(k, R):
-    """ 
-    Returns the Fourier Transform of a tophat window function. 
+    """
+    Returns the Fourier Transform of a tophat window function.
     """
     return 3*(np.sin(k*R) - (k*R)*np.cos(k*R))/((k*R)**3)
 
@@ -81,32 +78,8 @@ def get_nu(z, deltac = 1.686, Mmin = 9e13, Mmax=4e14, lenght=1000):
     M = np.linspace(Mmin, Mmax, lenght)
     R = (3*M/(4*np.pi*rho_bar(z)))**(1./3.) #kPc
     R = R * 1e-3 #MPc
-    sigma = cosmo.sigma(R, z) 
-    
+    sigma = cosmo.sigma(R, z)
     return deltac / sigma
-
-
-def corrddintegrand(k, r, z):
-    return k * k * (cosmo.matterPowerSpectrum(k/h, z=z)/h**3) * j0(k*r) * W_k_tophat(k, 3)
-
-def corrdvintegrand(k, r, z):
-    return k * (cosmo.matterPowerSpectrum(k/h, z=z)/h**3) * j1(k*r) * W_k_tophat(k, 3)
-
-def mattercorrelation(r, z):
-    factor = 1/(2*np.pi**2)
-    integral = np.zeros(len(r))
-    for i in range(len(r)):
-        integral[i] = quad(corrddintegrand, 1e-18, np.inf, args=(r[i], z), epsabs=0.0, epsrel=1.48e-8, limit=100)[0]
-    return factor * integral
-
-def velocitycorrelation2(r, z, gamma):
-    a = 1/(1+z)
-    factor = (a * cosmo.Hz(z) * fz(z, gamma=gamma))/(2*np.pi**2)
-    integral = np.zeros(len(r))
-    for i in range(len(r)):
-        integral[i] = quad(corrdvintegrand, 1e-18, np.inf, args=(r[i], z), epsabs=0.0, epsrel=1.48e-8, limit=100)[0]
-    return -1* factor * integral
-
 
 def xibarintegrand(r, z):
     return cosmo.correlationFunction(r*h, z) * r * r
@@ -116,7 +89,6 @@ def velocitycorrelation(r, z, gamma):
     factor = (a * r * cosmo.Hz(z) * fz(z, gamma=gamma))/3
     integral = np.zeros(len(r))
     for i in range(len(r)):
-        #integral[i] = quad(xibarintegrand, 1e-3, r[i], args=(z), epsabs=0, epsrel=1.48e-8, limit=100)[0]
         xint = np.linspace(1e-3/0.6,r[i],1e5)
         integral[i] = simps(xibarintegrand(xint, z), x = xint)
         integral[i] *= 3/(r[i]**3)
@@ -124,7 +96,7 @@ def velocitycorrelation(r, z, gamma):
 
 def v12(r,z,Mmin,Mmax, gamma):
     vcorr = velocitycorrelation(r, z, gamma=gamma)
-    mcorr = cosmo.correlationFunction(r*h, z) 
+    mcorr = cosmo.correlationFunction(r*h, z)
     b = bias_avg(Mmin, Mmax, z)
     numerator = 2 * b * vcorr
     denominator = 1 + (b**2)*mcorr
@@ -143,7 +115,6 @@ def TpkSZmodel(tau, r, z, sigmadc, Mmin, Mmax, gamma):
     return tau * Tcmb * v * damp / c
 
 def TpkSZ_calc(r, tau, z, sigmadc, richmin, richmax, gamma=4./7.):
-    
     '''
     pkSZ = zeros(len(r))
     for i in range(len(r)):
@@ -161,12 +132,10 @@ def sigmafit(r, TpkSZ, TpkSZcov, rmin=1, sep_good=None, rmax=301, richmin=20, ri
         sigmadc = 3e5*photoz*(1+meanz)/cosmo.Hz(meanz)
     else:
         sigmadc = 0
-        
     TpkSZfit = TpkSZ[np.where(r>40)]
     rfit = r[np.where(r>40)]
     invc = np.zeros((TpkSZfit.size, TpkSZfit.size))
     invc = ((subsamples - len(rfit) - 2)/(subsamples - 1))*np.linalg.inv(TpkSZcov[TpkSZ.size - TpkSZfit.size:,TpkSZ.size - TpkSZfit.size:])
-    
     rfitbin = np.zeros(len(rfit)+1)
     for i in range(len(rfit)):
         if sep_good is not None:
@@ -181,39 +150,33 @@ def sigmafit(r, TpkSZ, TpkSZcov, rmin=1, sep_good=None, rmax=301, richmin=20, ri
             if i == 0:
                 deltar = (rfit[i+1] - rfit[i])/2
             rfitbin[i] = rfit[i] - deltar
-            
     rfitbin[-1] = rmax
     pkSZ = np.zeros(len(rfit))
     for i in range(len(rfit)):
         R = np.linspace(rfitbin[i],rfitbin[i+1],100)
         pkSZfull = TpkSZ_calc(R, tau, meanz, sigmadc, richmin, richmax)
         pkSZ[i] = sum(pkSZfull)/len(R)
-        
-    #pkSZ = TpkSZ_calc(rfit, tau, meanz, sigmadc, richmin, richmax)
     sigmatau = 1/np.matmul(pkSZ.T, np.matmul(invc,pkSZ))
     taubest = sigmatau*np.matmul(TpkSZfit.T, np.matmul(invc,pkSZ))
     StoN = taubest/np.sqrt(sigmatau)
     if printbool:
         print('The S/N of the tau fit is: %.2f'%StoN)
-    
     if plot == True:
         R = np.linspace(rmin,rmax,100)
         pkSZtheo = TpkSZ_calc(R, taubest, meanz, sigmadc, richmin, richmax)
         return taubest, np.sqrt(sigmatau), R, pkSZtheo
     else:
         return taubest, np.sqrt(sigmatau), StoN
-    
+
 def gammafit(gamma, r, TpkSZ, TpkSZcov, tau, rmin=1, sep_good=None, rmax=301, richmin=20, richmax=60, meanz=0.4866, photoz=None, subsamples=150, printbool=False, plot=False, cosmo=cosmo):
     if photoz is not None:
         sigmadc = 3e5*photoz*(1+meanz)/cosmo.Hz(meanz)
     else:
         sigmadc = 0
-        
     TpkSZfit = TpkSZ[np.where(r>40)]
     rfit = r[np.where(r>40)]
     invc = np.zeros((TpkSZfit.size, TpkSZfit.size))
     invc = ((subsamples - len(rfit) - 2)/(subsamples - 1))*np.linalg.inv(TpkSZcov[TpkSZ.size - TpkSZfit.size:,TpkSZ.size - TpkSZfit.size:])
-    
     rfitbin = np.zeros(len(rfit)+1)
     for i in range(len(rfit)):
         if sep_good is not None:
@@ -228,7 +191,6 @@ def gammafit(gamma, r, TpkSZ, TpkSZcov, tau, rmin=1, sep_good=None, rmax=301, ri
             if i == 0:
                 deltar = (rfit[i+1] - rfit[i])/2
             rfitbin[i] = rfit[i] - deltar
-            
     rfitbin[-1] = rmax
     pkSZ = np.zeros(len(rfit))
     chisq = np.zeros(len(gamma))
@@ -237,7 +199,6 @@ def gammafit(gamma, r, TpkSZ, TpkSZcov, tau, rmin=1, sep_good=None, rmax=301, ri
             R = np.linspace(rfitbin[i],rfitbin[i+1],100)
             pkSZfull = TpkSZ_calc(R, tau, meanz, sigmadc, richmin, richmax, gamma=gamma[j])
             pkSZ[i] = sum(pkSZfull)/len(R)
-        
         vec = TpkSZfit - pkSZ
         chisq[j] = np.matmul(vec, np.matmul(invc, vec))
         if j == 0:
@@ -246,24 +207,18 @@ def gammafit(gamma, r, TpkSZ, TpkSZcov, tau, rmin=1, sep_good=None, rmax=301, ri
         elif chisqbest > chisq[j]:
             chisqbest = chisq[j]
             bestgamma = gamma[j]
-            
-    ind = np.where(chisq > chisqbest+1)
-    sigmagamma = abs(min(bestgamma - gamma[ind]))
+    ind = np.where(chisq >= chisqbest+1)
+    sigmagamma = min(abs(bestgamma - gamma[ind]))
     StoN = bestgamma/sigmagamma
     if printbool:
         print('The S/N of the gamma fit is: %.2f'%StoN)
-    
     if plot == True:
         R = np.linspace(rmin,rmax,100)
         pkSZtheo = TpkSZ_calc(R, tau, meanz, sigmadc, richmin, richmax, gamma=bestgamma)
         return bestgamma, sigmagamma, R, pkSZtheo, chisq, chisqbest
     else:
         return bestgamma, sigmagamma, StoN, chisq, chisqbest
-    
-def parallelsigmafit(r, TpkSZboots, TpkSZcovboot, rmin, sep_good, rmax, 
-                           richmin, richmax, meanz, photoz, 
-                           subsamples, plotsign):
-    taufitparallel, _, _, _ = sigmafit(r, TpkSZboots, TpkSZcovboot, rmin=rmin, sep_good=sep_good, rmax=rmax, 
-                           richmin=richmin, richmax=richmax, meanz=meanz, photoz=photoz, 
-                           subsamples=subsamples, plot=plotsign)
+
+def parallelsigmafit(r, TpkSZboots, TpkSZcovboot, rmin, sep_good, rmax, richmin, richmax, meanz, photoz, subsamples, plotsign):
+    taufitparallel, _, _, _ = sigmafit(r, TpkSZboots, TpkSZcovboot, rmin=rmin, sep_good=sep_good, rmax=rmax, richmin=richmin, richmax=richmax, meanz=meanz, photoz=photoz, subsamples=subsamples, plot=plotsign)
     return taufitparallel

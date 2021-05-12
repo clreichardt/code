@@ -5,8 +5,6 @@ from scipy.stats import binned_statistic as binstats
 from tqdm import tqdm
 from multiprocessing import Pool
 from utils import *
-#import secrets
-#from numpy.random import PCG64
 
 def readdata(filename, DECmin=None, DECmax=None, richmin=None, richmax=None, photoz=None, nobj=None, seed=None):
     clustinfo = ascii.read(filename)
@@ -14,8 +12,8 @@ def readdata(filename, DECmin=None, DECmax=None, richmin=None, richmax=None, pho
     RA = np.asarray(clustinfo['RA'])
     DEC = np.asarray(clustinfo['DEC'])
 
-    if DECmin is not None and DECmax is not None:    
-        pos = np.concatenate((np.where(clustinfo['DEC'] > DECmax)[0] , np.where(clustinfo['DEC'] < DECmin)[0]))      
+    if DECmin is not None and DECmax is not None:
+        pos = np.concatenate((np.where(clustinfo['DEC'] > DECmax)[0] , np.where(clustinfo['DEC'] < DECmin)[0]))
         Z = np.delete(Z, pos)
         TSZ = np.delete(TSZ, pos)
         richness = np.delete(richness, pos)
@@ -28,21 +26,18 @@ def readdata(filename, DECmin=None, DECmax=None, richmin=None, richmax=None, pho
         TSZ = np.delete(TSZ, pos)
         richness = np.delete(richness, pos)
         RA = np.delete(RA, pos)
-        DEC = np.delete(DEC, pos)        
-    
+        DEC = np.delete(DEC, pos)
     if richmax is not None:
         pos = np.where(richness > richmax)
         Z = np.delete(Z, pos)
         TSZ = np.delete(TSZ, pos)
         richness = np.delete(richness, pos)
         RA = np.delete(RA, pos)
-        DEC = np.delete(DEC, pos)        
-        
-        
+        DEC = np.delete(DEC, pos)
+
     if nobj is not None:
         if seed is not None:
             np.random.seed(seed)
-            
         pos = np.arange(len(Z))
         np.random.shuffle(pos)
         pos = pos[0:nobj]
@@ -51,24 +46,19 @@ def readdata(filename, DECmin=None, DECmax=None, richmin=None, richmax=None, pho
         DEC = DEC[pos]
         TSZ = TSZ[pos]
         richness = richness[pos]
-        
+
     if photoz is not None:
         if seed is not None:
             np.random.seed(seed)
-            
         Z += np.random.normal(loc=0., scale=photoz*(1+Z))
-        
     T = np.zeros(len(Z))
     sigmaz = 0.02
-    
     for i in tqdm(range(len(Z))):
         zi = Z[i]
         Ti = TSZ[i]
         T[i] = Ti - sum(TSZ*weight_func(zi, Z, sigmaz))/sum(weight_func(zi, Z, sigmaz))
 
-    h = cosmo.Hz(0)/100
     com_dists = cosmo.comovingDistance(z_max=Z)/h          # Compute comoving distance to each cluster
-        
     return RA, DEC, com_dists, T, richness
 
 
@@ -93,43 +83,38 @@ def CalculatePairwiseCDistJackknife(ra, dec, com_dists, field, sep_min=41, sep_g
     sep_max=bins[-1]
     sep_min=bins[0]
     rbins = 0.5*np.asarray(bins[1:]+bins[:-1])
-    nclusts = len(ra)
-    
     vec_unit = RaDec2XYZ(ra,dec) # Get unit vectors pointing to the cluster
+    nclusts = len(ra)
     vec_dist = (vec_unit.T * com_dists).T # Mpc
+
     tree = cKDTree(vec_dist)
-    pairs = tree.query_pairs(sep_max, output_type='ndarray') 
-    
+    pairs = tree.query_pairs(sep_max, output_type='ndarray')
     dista = vec_dist[pairs[:,0]]
     distb = vec_dist[pairs[:,1]]
     com_sep = np.linalg.norm(dista - distb, axis=1)
     ind = np.where(com_sep<sep_min)
-    
     com_sep = np.delete(com_sep, ind)
     pairs = np.delete(pairs, ind, axis=0)
-    
     unita = vec_unit[pairs[:,0]]
     unitb = vec_unit[pairs[:,1]]
     coma = com_dists[pairs[:,0]]
     comb = com_dists[pairs[:,1]]
     fielda = field[pairs[:,0]]
     fieldb = field[pairs[:,1]]
-    
-    costheta = sum(unita*unitb, axis=1)
-    
+    costheta = np.sum(unita*unitb, axis=1)
     cij = (coma-comb)*(1+costheta)/(2*com_sep)
-    
+
     if flip_sign:
         fij = fielda + fieldb
     else:
         fij = fielda - fieldb
-        
+
     numerator = fij*cij
     denominator = (cij**2)
-    
+
     bin_numerator, _, _ = binstats(com_sep, numerator, statistic='sum', bins=bins)
     bin_denominator, _, _ = binstats(com_sep, denominator, statistic='sum', bins=bins)
-    
+
     if count:
         counter, _, _ = binstats(com_sep, numerator, statistic='count', bins=bins)
     else:
@@ -150,8 +135,8 @@ def CalculatePairwiseCDistJackknife(ra, dec, com_dists, field, sep_min=41, sep_g
         denominator_to_drop, _, _ = binstats(com_sep[keep_pairs], denominator[keep_pairs], statistic='sum', bins=bins)
         TpkSZknife[i,:]=-1 * (bin_numerator-numerator_to_drop)/(bin_denominator-denominator_to_drop)
         keep[:]=False
-    
-    return rbins, TpkSZ, TpkSZknife, counter 
+
+    return rbins, TpkSZ, TpkSZknife, counter
 
 
 def CalculatePairwiseCDistBootstrap(ra, dec, com_dists, field, sep_min=41, sep_good=None, sep_max=300, nbins=20, nboot=25, flip_sign=False, count=True,bins=None):
@@ -163,21 +148,20 @@ def CalculatePairwiseCDistBootstrap(ra, dec, com_dists, field, sep_min=41, sep_g
     sep_min=bins[0]
     rbins = 0.5*np.asarray(bins[1:]+bins[:-1])
     nclusts = len(ra)
-    
+
     vec_unit = RaDec2XYZ(ra,dec) # Get unit vectors pointing to the cluster
     vec_dist = (vec_unit.T * com_dists).T # Mpc
     tree = cKDTree(vec_dist)
-    pairs = tree.query_pairs(sep_max, output_type='ndarray') 
-    
+    pairs = tree.query_pairs(sep_max, output_type='ndarray')
+
     dista = vec_dist[pairs[:,0]]
     distb = vec_dist[pairs[:,1]]
     com_sep = np.linalg.norm(dista - distb, axis=1)
-    
+
     sort_ind = np.argsort(com_sep)
     index_bin_edges = np.searchsorted(com_sep[sort_ind],bins,side='right')
     #the value at the index is just abov the bin edge
     #last value is upper edge
-
 
     pairs = pairs[sort_ind[index_bin_edges[0]:],:].copy()
     rev_index_bin_edges = index_bin_edges-index_bin_edges[0]
@@ -186,19 +170,19 @@ def CalculatePairwiseCDistBootstrap(ra, dec, com_dists, field, sep_min=41, sep_g
     comb  = com_dists[pairs[:,1]]
     fielda = field[pairs[:,0]]
     fieldb = field[pairs[:,1]]
-    
+
     costheta = sum(vec_unit[pairs[:,0]]*vec_unit[pairs[:,1]], axis=1)
-    cij = (coma-comb)*(1+costheta)/(2*com_sep[sort_ind[index_bin_edges[0]:]])    
+    cij = (coma-comb)*(1+costheta)/(2*com_sep[sort_ind[index_bin_edges[0]:]])
     if flip_sign:
         fij = fielda + fieldb
     else:
         fij = fielda - fieldb
     numerator = (fij*cij)
     denominator = (cij**2)
-            
-    bin_numerator= np.zeros(nbins,dtype=float) 
+
+    bin_numerator= np.zeros(nbins,dtype=float)
     bin_denominator= np.zeros(nbins,dtype=float)
-    
+
     for i in range(nbins):
         bin_numerator[i]=np.sum(numerator[rev_index_bin_edges[i]:rev_index_bin_edges[i+1]])
         bin_denominator[i]=np.sum(denominator[rev_index_bin_edges[i]:rev_index_bin_edges[i+1]])
@@ -221,11 +205,11 @@ def CalculatePairwiseCDistBootstrap(ra, dec, com_dists, field, sep_min=41, sep_g
         weight_pairs = weights[pairs[:,0]]*weights[pairs[:,1]]
         tmp_num = numerator*weight_pairs
         tmp_den = denominator*weight_pairs
-        
-        for j in range(nbins):
+
+    for j in range(nbins):
             TpkSZbootstrap[i,j]=-1 * (np.sum(tmp_num[rev_index_bin_edges[j]:rev_index_bin_edges[j+1]])) / (np.sum(tmp_den[rev_index_bin_edges[j]:rev_index_bin_edges[j+1]]))
 
-    return rbins, TpkSZ, TpkSZbootstrap, counter     
+    return rbins, TpkSZ, TpkSZbootstrap, counter
 
 def BS_loop(i,nclusts,nbins,pairs,numerator,denominator,rev_index_bin_edges,rng):
     #making this 1 extra to ensure weights below is always right length
@@ -254,16 +238,16 @@ def CalculatePairwiseCDistBootstrapParallel(ra, dec, com_dists, field, sep_min=4
     sep_min=bins[0]
     rbins = 0.5*np.asarray(bins[1:]+bins[:-1])
     nclusts = len(ra)
-    
+
     vec_unit = RaDec2XYZ(ra,dec) # Get unit vectors pointing to the cluster
     vec_dist = (vec_unit.T * com_dists).T # Mpc
     tree = cKDTree(vec_dist)
-    pairs = tree.query_pairs(sep_max, output_type='ndarray') 
-    
+    pairs = tree.query_pairs(sep_max, output_type='ndarray')
+
     dista = vec_dist[pairs[:,0]]
     distb = vec_dist[pairs[:,1]]
     com_sep = np.linalg.norm(dista - distb, axis=1)
-    
+
     sort_ind = np.argsort(com_sep)
     index_bin_edges = np.searchsorted(com_sep[sort_ind],bins,side='right')
     #the value at the index is just abov the bin edge
@@ -271,28 +255,26 @@ def CalculatePairwiseCDistBootstrapParallel(ra, dec, com_dists, field, sep_min=4
 
     pairs = pairs[sort_ind[index_bin_edges[0]:],:].copy()
     rev_index_bin_edges = index_bin_edges-index_bin_edges[0]
-    
+
     coma  = com_dists[pairs[:,0]]
     comb  = com_dists[pairs[:,1]]
     fielda = field[pairs[:,0]]
     fieldb = field[pairs[:,1]]
-    
+
     costheta = sum(vec_unit[pairs[:,0]]*vec_unit[pairs[:,1]], axis=1)
-    
+
     cij = (coma-comb)*(1+costheta)/(2*com_sep[sort_ind[index_bin_edges[0]:]])
-    
+
     if flip_sign:
         fij = fielda + fieldb
     else:
         fij = fielda - fieldb
-        
+
     numerator = (fij*cij)
     denominator = (cij**2)
-    
-            
-    bin_numerator= np.zeros(nbins,dtype=float) 
+    bin_numerator= np.zeros(nbins,dtype=float)
     bin_denominator= np.zeros(nbins,dtype=float)
-    
+
     for i in range(nbins):
         bin_numerator[i]=np.sum(numerator[rev_index_bin_edges[i]:rev_index_bin_edges[i+1]])
         bin_denominator[i]=np.sum(denominator[rev_index_bin_edges[i]:rev_index_bin_edges[i+1]])
@@ -314,10 +296,10 @@ def CalculatePairwiseCDistBootstrapParallel(ra, dec, com_dists, field, sep_min=4
     for i in range(nboot):
         TpkSZbootstrap[i,:] = pw_bs_tmp[i]
 
-    return rbins, TpkSZ, TpkSZbootstrap, counter    
-    
+    return rbins, TpkSZ, TpkSZbootstrap, counter
+
 def pkSZcalc(RA, DEC, com_dists, T, bins=None, binnumber=16, sep_min=41, sep_good=None, sep_max=300, Jackknife=True, Bootstrap=False, subsamples=150, sign=False, count=False, cpu_pool=8):
-    
+
     if Jackknife:
         r, TpkSZ, TpkSZknife, counter = CalculatePairwiseCDistJackknife(RA, DEC, com_dists, T, nbins=binnumber, sep_min=sep_min, sep_good=sep_good, sep_max=sep_max, knifebins=subsamples, flip_sign=sign, count=count, bins=None)
         TpkSZcov = np.cov(TpkSZknife.T, bias=True)*(subsamples-1)
@@ -327,7 +309,7 @@ def pkSZcalc(RA, DEC, com_dists, T, bins=None, binnumber=16, sep_min=41, sep_goo
     else:
         print('Either Jackknife or Bootstrap must be True')
         return
-    
+
     TpkSZcorr = np.corrcoef(TpkSZknife.T)
     Terror = np.sqrt(np.diagonal(TpkSZcov))
     return r, TpkSZ, TpkSZcov, Terror, TpkSZcorr, counter
@@ -342,4 +324,4 @@ def pkSZstoN(r, TpkSZ, TpkSZcov, rthreshold=40, subsamples=150, returnSN = False
     if returnSN:
         return StoN
     else:
-        return     
+        return
