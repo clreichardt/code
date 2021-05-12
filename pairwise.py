@@ -220,7 +220,7 @@ def CalculatePairwiseCDistBootstrap(ra, dec, com_dists, field, sep_min=41, sep_g
 def BS_loop(i,nclusts,nbins,pairs,numerator,denominator,rev_index_bin_edges,rng):
     #making this 1 extra to ensure weights below is always right length
     #rng.jumped(i)
-    np.random.seed(i)
+    np.random.seed(7919 + 5903*i)
     idx = np.random.randint(nclusts,size=nclusts+1) #rng.randint(nclusts,size=nclusts+1)
 
     idx[-1]=nclusts-1 #always want idx to include last one for next function
