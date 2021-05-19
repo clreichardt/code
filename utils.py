@@ -4,7 +4,7 @@ from colossus.halo import mass_adv
 from colossus.cosmology import cosmology
 
 import sys
-
+sys.path.append('/sptlocal/user/eschiappucci/spt3g_software/build')
 from spt3g import core, mapmaker, mapspectra, maps
 from astropy.io import fits
 from scipy.integrate import simps, quad
@@ -20,7 +20,7 @@ M0 = 3.081e14 #Msun
 F = 1.356
 G = -0.30
 
-cosmo = cosmology.setCosmology('WMAP7')#planck18-only WMAP7
+cosmo = cosmology.setCosmology('planck18-only')#planck18-only WMAP7
 print(cosmo.getName())
 h = cosmo.Hz(0)/100
 
@@ -202,17 +202,17 @@ def GetMatchFilter2d(map2d, bells, bl, mapreso=0.25, beamwidth=1.27, thetacore=0
     ellx = np.fft.fftfreq(map2d.shape[0], mapreso*np.pi/(180*60))*2*np.pi
     elly = np.fft.fftfreq(map2d.shape[1], mapreso*np.pi/(180*60))*2*np.pi
     limits = [-max(ellx), max(ellx), -max(elly), max(elly)]
-    fi = np.interpolate.interp1d(bells, bl, kind='quadratic', fill_value='extrapolate')
+    fi = interpolate.interp1d(bells, bl, kind='quadratic', fill_value='extrapolate')
     gauss_2d = fi(ells)
     gauss_2d[np.where(gauss_2d<1e-7)] = 1e-7
     beta_2d = beta1fourier(ells, thetac=np.deg2rad(thetacore/60))
     signal = gauss_2d * beta_2d
-    fi = np.interpolate.interp1d(ells, signal, kind='quadratic', fill_value='extrapolate')
+    fi = interpolate.interp1d(ells, signal, kind='quadratic', fill_value='extrapolate')
     signal = fi(L.ravel())
     signal[np.where(abs(L.ravel())>12000)] = 0
     signal = signal.reshape(L.shape)
     signal *= tfunc
-    fi = np.interpolate.interp1d(ells, spt150ps, kind='quadratic', fill_value='extrapolate')
+    fi = interpolate.interp1d(ells, spt150ps, kind='quadratic', fill_value='extrapolate')
     noise_2d = fi(L.ravel())
     noise_2d[np.where(abs(L.ravel())>max(ells))] = 1e-20
     noise_2d = noise_2d.reshape(L.shape)
@@ -235,7 +235,7 @@ def GetNoiseMatchFilter2d(noise_2d, bells, bl, mapreso=0.25, thetacore=0.5, beta
     L = np.hypot(ellx, elly)
     tfunc = transfunc(ellx, elllow=lowl, ellhigh=highl)
     del ellx, elly, ell
-    fi = np.interpolate.interp1d(bells, bl, kind='quadratic', fill_value='extrapolate')
+    fi = interpolate.interp1d(bells, bl, kind='quadratic', fill_value='extrapolate')
     gauss_2d = fi(L.ravel())
     gauss_2d = gauss_2d.reshape(L.shape)
     beta_2d = beta1fourier(L, thetac=np.deg2rad(thetacore/60))
@@ -283,7 +283,7 @@ def GetILCweights2d(mapsvec, M, ells, avec, bvec=None, reso = 0.25, lowl = 50, h
         for i in range(0,N):
             x = np.append(ells, ells[-1] + 500)
             y = np.append(psi[i,0], 0)
-            fi = np.interpolate.interp1d(x, y, kind='cubic', fill_value='extrapolate')
+            fi = interpolate.interp1d(x, y, kind='cubic', fill_value='extrapolate')
             weight_temp = fi(L.ravel())
             weight_temp[np.where(abs(L.ravel())>max(x))] = 0
             weights[i] = weight_temp.reshape(L.shape)
@@ -314,7 +314,7 @@ def GetILCweights2d(mapsvec, M, ells, avec, bvec=None, reso = 0.25, lowl = 50, h
         for i in range(0,N):
             x = np.append(ells, ells[-1] + 500)
             y = np.append(psi[i,0], 0)
-            fi = np.interpolate.interp1d(x, y, kind='cubic', fill_value='extrapolate')
+            fi = interpolate.interp1d(x, y, kind='cubic', fill_value='extrapolate')
             weight_temp = fi(L.ravel())
             weight_temp[np.where(abs(L.ravel())>max(x))] = 0
             weights[i] = weight_temp.reshape(L.shape)
@@ -360,7 +360,7 @@ def masstorich(mass, z, massdef='200c'):
     assert(len(mass) == len(z))
     Mnew = np.zeros(len(mass))
     for i in range(len(mass)):
-        Mnew[i], Rnew, Cnew = mass_adv.changeMassDefinitionCModel(mass[i]*h[i], z[i], massdef, '200m')
+        Mnew[i], Rnew, Cnew = mass_adv.changeMassDefinitionCModel(mass[i]*h, z[i], massdef, '200m')
     Mnew=Mnew/h
     return 40*((Mnew/M0)*(1.35/(1+z))**G)**(1./F)
 
@@ -460,71 +460,4 @@ def fn_load_halo_flender(fname, mmin=5e14, mmax=5e15, richmin=None, richmax=None
     v_los = cat.VLOS
 
     return ra, dec, zs, v_los, richness
-
-
-def wavelenght_to_rgb(wavelength, gamma=0.8, intensidad_max=255):
-    """
-    Esta funcion devuelve un tuple de la forma (r,g,b) a partir de una
-    longitud de onda en nanometros en el rango [380, 780].
-
-    Basada en el trabajo de Dan Bruton (www.physics.sfasu.edu/astro/color.html).
-    http://www.midnightkite.com/color.html
-    """
-    red = 0.0
-    blue = 0.0
-    green = 0.0
-    factor = 0.0
-
-    if 380 < wavelength > 780:
-        print("La longitud de onda suministrada esta fuera del rango [380, 780]")
-        return 0.0, 0.0, 0.0
-
-    if (wavelength >= 380) and (wavelength <= 439):
-        red = -float(wavelength - 440) / (440 - 380)
-        green = 0.0
-        blue = 1.0
-    if (wavelength >= 440) and (wavelength <= 489):
-        red = 0.0
-        green = float(wavelength - 440) / (490 - 440)
-        blue = 1.0
-    if (wavelength >= 490) and (wavelength <= 509):
-        red = 0.0
-        green = 1.0
-        blue = -(wavelength - 510) / (510 - 490)
-    if (wavelength >= 510) and (wavelength <= 579):
-        red = float(wavelength - 510) / (580 - 510)
-        green = 1.0
-        blue = 0.0
-    if (wavelength >= 580) and (wavelength <= 644):
-        red = 1.0
-        green = -float(wavelength - 645) / (645 - 580)
-        blue = 0.0
-    if (wavelength >= 645) and (wavelength <= 780):
-        red = 1.0
-        green = 0.0
-        blue = 0.0
-
-    # determinando factor
-    if 380 <= wavelength <= 419:
-        factor = 0.3 + 0.7 * float(wavelength - 380) / (420 - 380)
-    if 420 <= wavelength <= 700:
-        factor = 1
-    if 701 <= wavelength <= 780:
-        factor = 0.3 + 0.7 * float(780 - wavelength) / (780 - 700)
-
-    def ajustar(color):
-        return intensidad_max * (color * factor) ** gamma
-
-    red = ajustar(red)
-    green = ajustar(green)
-    blue = ajustar(blue)
-    return red, green, blue
-
-
-def wavelenght_to_rgb_in_hex(wavelength, gamma=0.8, intensidad_max=255):
-    """
-        Esta función es un wrapper de wavelenght_to_rgb para transformar la salida directamente en hexadecimal
-    """
-    r, g, b = wavelenght_to_rgb(wavelength, gamma, intensidad_max)
-    return "#%02x%02x%02x" %(int(r), int(g), int(b))
 

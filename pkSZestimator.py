@@ -25,11 +25,7 @@ def fz(z, gamma=4./7.):
     '''
     Lahav et al (1991) approximation for the growth factor
     '''
-    Omz = cosmo.Om(z)
-    Odz = cosmo.Ode(z)
-    numerator = Omz*(1+z)**3
-    denominator = Omz*(1+z) - (Omz + Odz - 1)*(1+z)**2 + Odz
-    return (numerator/denominator)**(gamma)
+    return cosmo.Om(z)**gamma
 
 def bias_nu(nu, deltac=1.686, delta_v=200.):
     """
@@ -53,7 +49,7 @@ def bias_nu(nu, deltac=1.686, delta_v=200.):
     return (1. - A*nu**a/(nu**a + deltac**a) + B*nu**b + C*nu**c)
 
 def bias_avg(Mmin, Mmax, z):
-    size = int(1e3)
+    size = int(1e5)
     M = np.linspace(Mmin,Mmax,size)
     hmf = massFunction(M*h, z, q_in='M', q_out='dndlnM', mdef='200c', model='tinker08')*(h**3)/M
     nu = get_nu(z, Mmin=Mmin, Mmax=Mmax, lenght=size)
@@ -66,7 +62,7 @@ def rho_bar(z): #[M_sun/kpc^3]
     """
     Returns the comoving matter density at redshift z [M_sun/kpc^3].
     """
-    return cosmo.rho_c(z) * cosmo.Om(z) * (h**2) #* (1+z)**3 
+    return cosmo.rho_c(z) * cosmo.Om(z) * (h**2)
 
 def W_k_tophat(k, R):
     """

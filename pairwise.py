@@ -92,7 +92,7 @@ def CalculatePairwiseCDistJackknife(ra, dec, com_dists, field, sep_min=41, sep_g
     vec_dist = (vec_unit.T * com_dists).T # Mpc
 
     tree = cKDTree(vec_dist)
-    pairs = tree.query_pairs(sep_max, output_type='ndarray') 
+    pairs = tree.query_pairs(sep_max, output_type='ndarray')
     dista = vec_dist[pairs[:,0]]
     distb = vec_dist[pairs[:,1]]
     com_sep = np.linalg.norm(dista - distb, axis=1)
@@ -324,7 +324,7 @@ def pkSZstoN(r, TpkSZ, TpkSZcov, rthreshold=45, subsamples=150, returnSN = False
     pkSZ = TpkSZ[np.where(r>rthreshold)]
     invcov = np.zeros((pkSZ.size, pkSZ.size))
     invcov = ((subsamples - len(pkSZ) - 2)/(subsamples - 1))*np.linalg.pinv(TpkSZcov[TpkSZ.size - pkSZ.size:,TpkSZ.size - pkSZ.size:])
-    StoN = np.sqrt(np.matmul(pkSZ.T, matmul(invcov, pkSZ)))
+    StoN = np.sqrt(np.matmul(pkSZ.T, np.matmul(invcov, pkSZ)))
     print(StoN)
     if returnSN:
         return StoN
