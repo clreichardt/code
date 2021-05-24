@@ -267,7 +267,7 @@ def CalculatePairwiseCDistBootstrapParallel(ra, dec, com_dists, field, sep_min=4
     fielda = field[pairs[:,0]]
     fieldb = field[pairs[:,1]]
 
-    costheta = sum(vec_unit[pairs[:,0]]*vec_unit[pairs[:,1]], axis=1)
+    costheta = np.sum(vec_unit[pairs[:,0]]*vec_unit[pairs[:,1]], axis=1)
 
     cij = (coma-comb)*(1+costheta)/(2*com_sep[sort_ind[index_bin_edges[0]:]])
 
